@@ -1,0 +1,10 @@
+[project]
+name = "kneecap-transcribe"
+version = "0.0.0"
+description = "Transcription Service for Kneecap"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "flask>=3.1.0",
+    "openai-whisper>=20240930",
+]
