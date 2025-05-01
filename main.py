@@ -31,70 +31,72 @@ init_db()
 
 # Background worker to process jobs
 def process_job(job_id):
-    conn = sqlite3.connect('jobs.db')
-    c = conn.cursor()
-    
-    # Get job details
-    c.execute('SELECT audio_path FROM jobs WHERE id = ?', (job_id,))
-    result = c.fetchone()
-    if not result:
-        conn.close()
-        return
-    
-    audio_path = result[0]
-    
-    try:
-        # Update status to processing
-        c.execute('''
-            UPDATE jobs 
-            SET status = 'processing', 
-                updated_at = ? 
-            WHERE id = ?
-        ''', (datetime.now(), job_id))
-        conn.commit()
+    # Create app context for the thread
+    with app.app_context():
+        conn = sqlite3.connect('jobs.db')
+        c = conn.cursor()
         
-        # Process transcription
-        result = model.transcribe(audio_path, verbose=False)
-        transcription = result["text"]
-        segments = result["segments"]
+        # Get job details
+        c.execute('SELECT audio_path FROM jobs WHERE id = ?', (job_id,))
+        result = c.fetchone()
+        if not result:
+            conn.close()
+            return
         
-        # Update job with results
-        c.execute('''
-            UPDATE jobs 
-            SET status = 'completed', 
-                result = ?,
-                updated_at = ? 
-            WHERE id = ?
-        ''', (
-            jsonify({
-                'transcription': transcription,
-                'language': result["language"],
-                'segments': [
-                    {
-                        'text': segment['text'],
-                        'start': segment['start'],
-                        'end': segment['end']
-                    }
-                    for segment in segments
-                ]
-            }).data.decode('utf-8'),
-            datetime.now(),
-            job_id
-        ))
-        conn.commit()
+        audio_path = result[0]
         
-    except Exception as e:
-        # Update job with error
-        c.execute('''
-            UPDATE jobs 
-            SET status = 'failed', 
-                error = ?,
-                updated_at = ? 
-            WHERE id = ?
-        ''', (str(e), datetime.now(), job_id))
-        conn.commit()
-    finally:
-        conn.close()
+        try:
+            # Update status to processing
+            c.execute('''
+                UPDATE jobs 
+                SET status = 'processing', 
+                    updated_at = ? 
+                WHERE id = ?
+            ''', (datetime.now(), job_id))
+            conn.commit()
+            
+            # Process transcription
+            result = model.transcribe(audio_path, verbose=False)
+            transcription = result["text"]
+            segments = result["segments"]
+            
+            # Update job with results
+            c.execute('''
+                UPDATE jobs 
+                SET status = 'completed', 
+                    result = ?,
+                    updated_at = ? 
+                WHERE id = ?
+            ''', (
+                json.dumps({
+                    'transcription': transcription,
+                    'language': result["language"],
+                    'segments': [
+                        {
+                            'text': segment['text'],
+                            'start': segment['start'],
+                            'end': segment['end']
+                        }
+                        for segment in segments
+                    ]
+                }),
+                datetime.now(),
+                job_id
+            ))
+            conn.commit()
+            
+        except Exception as e:
+            # Update job with error
+            c.execute('''
+                UPDATE jobs 
+                SET status = 'failed', 
+                    error = ?,
+                    updated_at = ? 
+                WHERE id = ?
+            ''', (str(e), datetime.now(), job_id))
+            conn.commit()
+        finally:
+            conn.close()
 
 @app.route('/start', methods=['POST'])
 def start_transcription():
