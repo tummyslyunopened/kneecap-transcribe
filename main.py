@@ -25,6 +25,8 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     c = conn.cursor()
+    conn = get_db_connection()
+    c = conn.cursor()
     c = conn.cursor()
     c.execute("""
         CREATE TABLE IF NOT EXISTS jobs (
@@ -48,6 +50,7 @@ init_db()
 def process_job(job_id):
     # Create app context for the thread
     with app.app_context():
+        conn = get_db_connection()
         conn = get_db_connection()
         c = conn.cursor()
 
@@ -165,6 +168,7 @@ def start_transcription():
 
 @app.route("/status/<job_id>", methods=["GET"])
 def get_job_status(job_id):
+    conn = get_db_connection()
     conn = get_db_connection()
     c = conn.cursor()
 
