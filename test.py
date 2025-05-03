@@ -10,7 +10,7 @@ def main():
     files = {'audio': open(args.audio_file, 'rb')}
 
     # Send the request to the API
-    response = requests.post('http://localhost:5000/transcribe', files=files)
+    response = requests.post('http://localhost:8001/transcribe', files=files)
 
     # Process the response
     if response.status_code == 200:

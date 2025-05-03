@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 import tempfile
 import whisper
 import sqlite3
+from threading import Lock
+import os
 from threading import Thread
 from datetime import datetime
 import json
@@ -11,8 +13,18 @@ model = whisper.load_model("base")
 
 
 # Create jobs database if it doesn't exist
+def get_db_connection():
+    conn = sqlite3.connect(
+        "jobs.db",
+        check_same_thread=False,
+        timeout=30  # 30 second timeout
+    )
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def init_db():
-    conn = sqlite3.connect("jobs.db")
+    conn = get_db_connection()
+    c = conn.cursor()
     c = conn.cursor()
     c.execute("""
         CREATE TABLE IF NOT EXISTS jobs (
@@ -36,7 +48,7 @@ init_db()
 def process_job(job_id):
     # Create app context for the thread
     with app.app_context():
-        conn = sqlite3.connect("jobs.db")
+        conn = get_db_connection()
         c = conn.cursor()
 
         # Get job details
@@ -153,7 +165,7 @@ def start_transcription():
 
 @app.route("/status/<job_id>", methods=["GET"])
 def get_job_status(job_id):
-    conn = sqlite3.connect("jobs.db")
+    conn = get_db_connection()
     c = conn.cursor()
 
     c.execute(
@@ -190,3 +202,4 @@ def get_job_status(job_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=8001)
+
