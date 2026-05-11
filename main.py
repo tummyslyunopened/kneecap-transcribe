@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, String, Text, DateTime
 from threading import Thread
 from datetime import datetime
+import os
 import tempfile
 import whisper
 import json
@@ -133,5 +134,11 @@ def get_job_status(job_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, port=8001)
+    # PORT lets process supervisors (e.g. config-local-web-deploys) pick the
+    # bind port without editing this file. use_reloader is pinned off so the
+    # server is a single PID — Flask's debug reloader would otherwise fork a
+    # child the supervisor can't track.
+    port = int(os.environ.get("PORT", "8001"))
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
+    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=False)
 
